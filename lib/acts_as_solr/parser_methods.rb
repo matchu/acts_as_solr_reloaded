@@ -137,6 +137,7 @@ module ActsAsSolr #:nodoc:
         :docs => [],
         :total => 0
       }
+      return SearchResults.new(results) if solr_data.nil?
       options[:results_format] ||= :objects
 
       results.update(:spellcheck => solr_data.data['spellcheck'])

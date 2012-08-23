@@ -96,6 +96,12 @@ class ParserMethodsTest < Test::Unit::TestCase
         end
       end
 
+      context "with a nil result set" do
+        should "return an empty search results set" do
+          assert_equal 0, @parser.parse_results(nil).total
+        end
+      end
+
       context "with the scores option" do
         should "add the scores" do
           @parser.expects(:add_scores).with([], @results)
