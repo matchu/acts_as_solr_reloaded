@@ -1,9 +1,9 @@
 namespace :solr do
 
   APACHE_MIRROR = ENV['APACHE_MIRROR'] || "http://ftp.unicamp.br/pub/apache"
-  SOLR_VERSION = '3.6.0'
+  SOLR_VERSION = '3.6.2'
   SOLR_FILENAME = "apache-solr-#{SOLR_VERSION}.tgz" 
-  SOLR_MD5SUM = 'ac11ef4408bb015aa3a5eefcb1047aec'
+  SOLR_MD5SUM = 'e9c51f51265b070062a9d8ed50b84647'
   SOLR_URL = "#{APACHE_MIRROR}/lucene/solr/#{SOLR_VERSION}/#{SOLR_FILENAME}" 
   SOLR_DIR = "apache-solr-#{SOLR_VERSION}" 
 
@@ -18,13 +18,23 @@ namespace :solr do
   task :download do
     abort 'Solr already downloaded.' if solr_downloaded?
 
-    Dir.chdir '/tmp' do
-      sh "wget -c #{SOLR_URL}"
+    tmpdir = [ '/var/tmp', '/tmp' ].find { |d| File.exists?(d) }
+    Dir.chdir tmpdir do
+      skip_download = false
+      if File.exists?(SOLR_FILENAME)
+        sh "echo \"#{SOLR_MD5SUM}  #{SOLR_FILENAME}\" | md5sum -c -" do |ok, res|
+          skip_download = ok
+        end
+      end
 
-      sh "echo \"#{SOLR_MD5SUM}  /tmp/#{SOLR_FILENAME}\" | md5sum -c -" do |ok, res|
+      unless skip_download
+        sh "wget -c #{SOLR_URL}"
+      end
+
+      sh "echo \"#{SOLR_MD5SUM}  #{SOLR_FILENAME}\" | md5sum -c -" do |ok, res|
         abort "MD5SUM do not match" if !ok
 
-        sh "tar xzf apache-solr-#{SOLR_VERSION}.tgz"
+        sh "tar xzf #{SOLR_FILENAME}"
         cd "apache-solr-#{SOLR_VERSION}/example"
 
         cp_r ['../LICENSE.txt', '../NOTICE.txt', 'README.txt', 'etc', 'lib', 'start.jar', 'webapps', 'work'], "#{PLUGIN_ROOT}/solr", :verbose => true
