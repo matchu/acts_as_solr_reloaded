@@ -1,6 +1,7 @@
-source :rubygems
+source 'https://rubygems.org'
 
 gem 'ruby-debug'
+gem 'rdoc'
 
 gem 'rails', '2.3.5'
 

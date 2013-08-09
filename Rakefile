@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'rake'
 require 'rake/testtask'
-require 'rake/rdoctask'
+require 'rdoc/task'
 
 ENV['RAILS_ENV'] = "test"
 require File.expand_path("#{File.dirname(__FILE__)}/config/solr_environment")
