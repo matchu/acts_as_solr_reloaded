@@ -15,8 +15,7 @@ before_script:
   - rake solr:download
   - RAILS_ENV=test rake solr:start
 
-script: "bundle exec rake $TASK --trace"
+script: 
+  - bundle exec rake test --trace
+  - bundle exec rake test:functional --trace
 
-env: 
-  - TASK=test
-  - TASK=test:functional
