@@ -33,6 +33,8 @@ ENV["RAILS_ENV"] = "test"
 require File.expand_path(File.dirname(__FILE__) + '/../config/solr_environment')
 require File.expand_path(File.dirname(__FILE__) + '/../lib/acts_as_solr')
 
+ActiveRecord::Base.logger = Logger.new('/dev/null')
+
 # Load Models
 models_dir = File.join(File.dirname( __FILE__ ), 'models')
 require "#{models_dir}/book.rb"
@@ -60,10 +62,10 @@ class Test::Unit::TestCase
       klass = instance_eval table_name.to_s.capitalize.singularize
       klass.find(:all).each{|content| content.solr_save}
     end
-    
+
     clear_from_solr(:novels)
   end
-  
+
   private
   def self.clear_from_solr(table_name)
     ActsAsSolr::Post.execute(Solr::Request::Delete.new(:query => "type_s:#{table_name.to_s.capitalize.singularize}"))
