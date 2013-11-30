@@ -10,7 +10,7 @@ module ActsAsSolr #:nodoc:
     # saves to the Solr index
     def solr_save
       return true if indexing_disabled?
-      if Helpers.evaluate_condition(:if, self)
+      if Helpers.evaluate_condition(configuration[:if], self)
         Helpers.debug "solr_save: #{self.class.name} : #{record_id(self)}"
         solr_add to_solr_doc
         solr_commit if configuration[:auto_commit]
@@ -21,7 +21,7 @@ module ActsAsSolr #:nodoc:
     end
 
     def indexing_disabled?
-      Helpers.evaluate_condition(:offline, self) || !configuration[:if]
+      Helpers.evaluate_condition(configuration[:offline], self) || !configuration[:if]
     end
 
     # remove from index
@@ -37,7 +37,7 @@ module ActsAsSolr #:nodoc:
     def to_solr_doc
       Helpers.debug "to_solr_doc: creating doc for class: #{self.class.name}, id: #{record_id(self)}"
       doc = Solr::Document.new
-      doc.boost = Helpers.validate_boost(configuration[:boost]) if configuration[:boost]
+      doc.boost = Helpers.validate_boost(configuration[:boost], solr_configuration) if configuration[:boost]
 
       doc << {:id => solr_id,
               solr_configuration[:type_field] => Solr::Util.query_parser_escape(self.class.name),
@@ -59,15 +59,15 @@ module ActsAsSolr #:nodoc:
         value = value.first if value.size == 1
 
         field = Solr::Field.new(:name => "#{solr_name}_#{suffix}", :value => value)
-        processed_boost = Helpers.validate_boost(field_boost)
+        processed_boost = Helpers.validate_boost(field_boost, solr_configuration)
         field.boost = processed_boost
         doc << field
       end
 
-      Helpers.add_dynamic_attributes(doc)
-      Helpers.add_includes(doc)
-      Helpers.add_tags(doc)
-      Helpers.add_space(doc)
+      Helpers.add_dynamic_attributes(doc, configuration)
+      Helpers.add_includes(doc, configuration, solr_configuration)
+      Helpers.add_tags(doc, configuration)
+      Helpers.add_space(doc, configuration)
 
       Helpers.debug doc.to_json
       doc
@@ -78,21 +78,21 @@ module ActsAsSolr #:nodoc:
         logger.debug text rescue nil
       end
 
-      def self.add_space(doc)
+      def self.add_space(doc, configuration)
         if configuration[:spatial] and local
           doc << Solr::Field.new(:name => "lat_f", :value => local.latitude)
           doc << Solr::Field.new(:name => "lng_f", :value => local.longitude)
         end
       end
 
-      def self.add_tags(doc)
+      def self.add_tags(doc, configuration)
         taggings.each do |tagging|
           doc << Solr::Field.new(:name => "tag_facet", :value => tagging.tag.name)
           doc << Solr::Field.new(:name => "tag_t", :value => tagging.tag.name)
         end if configuration[:taggable]
       end
 
-      def self.add_dynamic_attributes(doc)
+      def self.add_dynamic_attributes(doc, configuration)
         dynamic_attributes.each do |attribute|
           value = ERB::Util.html_escape(attribute.value)
           doc << Solr::Field.new(:name => "#{attribute.name.downcase}_t", :value => value)
@@ -100,7 +100,7 @@ module ActsAsSolr #:nodoc:
         end if configuration[:dynamic_attributes]
       end
 
-      def self.add_includes(doc)
+      def self.add_includes(doc, configuration, solr_configuration)
         if configuration[:solr_includes].respond_to?(:each)
           configuration[:solr_includes].each do |association, options|
             data = options[:multivalued] ? [] : ""
@@ -115,7 +115,7 @@ module ActsAsSolr #:nodoc:
                 records.each {|r| data << include_value(r, options)}
                 Array(data).each do |value|
                   field = Solr::Field.new(:name => "#{field_name}_#{suffix}", :value => value)
-                  processed_boost = validate_boost(field_boost)
+                  processed_boost = validate_boost(field_boost, solr_configuration)
                   field.boost = processed_boost
                   doc << field
                 end
@@ -146,7 +146,7 @@ module ActsAsSolr #:nodoc:
         end
       end
 
-      def self.validate_boost(boost)
+      def self.validate_boost(boost, solr_configuration)
         boost_value = case boost
         when Float
           return solr_configuration[:default_boost] if boost < 0
@@ -166,8 +166,7 @@ module ActsAsSolr #:nodoc:
         condition.respond_to?("call") && (condition.arity == 1 || condition.arity == -1)
       end
 
-      def self.evaluate_condition(which_condition, field)
-        condition = configuration[which_condition]
+      def self.evaluate_condition(condition, field)
         case condition
           when Symbol
             field.send(condition)
